@@ -1,0 +1,16 @@
+# Dependencies
+/frontend/node_modules
+/backend/node_modules
+/node_modules
+
+# Environment files
+/frontend/.env
+/backend/.env
+/frontend/src/assets
+/frontend/build
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
