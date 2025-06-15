@@ -12,7 +12,8 @@ const TaskItem = ({ task, onTasksChange }) => {
     completed: "bg-green-100 text-green-800",
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e) => {
+    e.stopPropagation(); // Prevent modal from opening when clicking delete
     if (!window.confirm("Are you sure you want to delete this task?")) return;
 
     try {
@@ -42,7 +43,7 @@ const TaskItem = ({ task, onTasksChange }) => {
   const canModify = role === "admin" || task.createdBy?._id === id;
 
   return (
-    <div className="p-4 border-b last:border-b-0 hover:bg-gray-50">
+    <div className="p-4 hover:bg-gray-50 transition-colors">
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <h3 className="text-lg font-semibold">{task.title}</h3>
@@ -66,16 +67,16 @@ const TaskItem = ({ task, onTasksChange }) => {
         </div>
 
         {canModify && (
-          <div className="flex items-center space-x-3">
+          <div className="flex space-x-2 ml-4" onClick={e => e.stopPropagation()}>
             <Link
               to={`/tasks/${task._id}/edit`}
-              className="text-sm px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+              className="text-blue-600 hover:text-blue-800"
             >
               Edit
             </Link>
             <button
               onClick={handleDelete}
-              className="text-sm px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200"
+              className="text-red-600 hover:text-red-800"
             >
               Delete
             </button>

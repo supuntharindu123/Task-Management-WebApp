@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import TaskItem from "./TaskItem";
+import TaskModal from "./TaskModal";
 
 const TaskList = () => {
   const { token, role, id } = useAuth();
@@ -13,6 +14,7 @@ const TaskList = () => {
     deadline: "",
     sort: "-createdAt",
   });
+  const [selectedTask, setSelectedTask] = useState(null);
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -85,6 +87,10 @@ const TaskList = () => {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
   };
 
   useEffect(() => {
@@ -181,16 +187,26 @@ const TaskList = () => {
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="divide-y divide-gray-200">
             {tasks.map((task) => (
-              <TaskItem
+              <div
                 key={task._id}
-                task={task}
-                isAdmin={role === "admin"}
-                userId={id}
-                onTasksChange={fetchTasks}
-              />
+                onClick={() => handleTaskClick(task)}
+                className="cursor-pointer"
+              >
+                <TaskItem
+                  task={task}
+                  isAdmin={role === "admin"}
+                  userId={id}
+                  onTasksChange={fetchTasks}
+                />
+              </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Add Modal */}
+      {selectedTask && (
+        <TaskModal task={selectedTask} onClose={() => setSelectedTask(null)} />
       )}
     </div>
   );
