@@ -19,6 +19,7 @@ import OtpVerificationPage from "./pages/OtpVerificationPage";
 import TaskForm from "./components/tasks/TaskForm";
 import EditTaskForm from "./components/tasks/EditTaskForm";
 import UserEdit from "./components/users/UserEdit";
+import TaskDetails from "./components/tasks/TaskDetails";
 // import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 // import ResetPasswordPage from "./pages/ResetPasswordPage";
 
@@ -72,7 +73,7 @@ const App = () => {
               path="/tasks/:id"
               element={
                 <PrivateRoute>
-                  <TaskDetailPage />
+                  <TaskDetails />
                 </PrivateRoute>
               }
             />

@@ -1,8 +1,11 @@
-import User from "../models/User.js";
+import { OAuth2Client } from 'google-auth-library';
+import User from '../models/User.js';
 import OTP from "../models/OTP.js";
 import ErrorResponse from "../utils/errorResponse.js";
 import sendEmail from "../utils/emailService.js";
 import jwt from "jsonwebtoken";
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -227,3 +230,50 @@ export async function logout(req, res, next) {
     next(err);
   }
 }
+
+// @desc    Google auth
+// @route   POST /api/auth/google
+// @access  Public
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    
+    let user = await User.findOne({ email: payload.email });
+
+    if (!user) {
+      // Create new user if doesn't exist
+      user = await User.create({
+        name: payload.name,
+        email: payload.email,
+        password: Math.random().toString(36).slice(-8), // Generate random password
+        isVerified: true, // Google users are already verified
+        role: 'user'
+      });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE }
+    );
+
+    res.status(200).json({
+      success: true,
+      token,
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    });
+  } catch (error) {
+    next(error);
+  }
+};

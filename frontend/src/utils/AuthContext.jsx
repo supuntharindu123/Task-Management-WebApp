@@ -122,6 +122,39 @@ export const AuthProvider = ({ children }) => {
     navigate("/login");
   };
 
+  // Add Google Login function
+  const googleLogin = async (credential) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ credential }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("id", data.id);
+        setAuthState({
+          user: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          token: data.token,
+        });
+        return { success: true };
+      } else {
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      console.error("Google login error:", error);
+      return { success: false, error: "Google login failed" };
+    }
+  };
+
   useEffect(() => {
     loadUser();
   }, []);
@@ -134,6 +167,7 @@ export const AuthProvider = ({ children }) => {
         loadUser,
         verifyOTP,
         logout,
+        googleLogin, // Add googleLogin to context
       }}
     >
       {children}
