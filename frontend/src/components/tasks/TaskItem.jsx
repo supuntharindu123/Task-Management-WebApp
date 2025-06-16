@@ -1,6 +1,7 @@
 import React from "react";
 import { format, isPast, isToday } from "date-fns";
 import { FaCalendarAlt, FaUser, FaClock, FaFlag } from "react-icons/fa";
+import ReactMarkdown from "react-markdown";
 
 const TaskItem = ({ task }) => {
   const statusClasses = {
@@ -41,7 +42,9 @@ const TaskItem = ({ task }) => {
         </div>
 
         {/* Description */}
-        <p className="text-gray-600 text-sm line-clamp-2">{task.description}</p>
+        <div className="prose prose-sm max-w-none text-gray-600">
+          <ReactMarkdown>{task.description}</ReactMarkdown>
+        </div>
 
         {/* Meta Information */}
         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import { format } from "date-fns";
+import ReactMarkdown from "react-markdown";
 import {
   FaUser,
   FaCalendarAlt,
@@ -9,7 +10,10 @@ import {
   FaEdit,
   FaTrash,
   FaArrowLeft,
+  FaPaperclip,
+  FaDownload,
 } from "react-icons/fa";
+import FileViewer from "../common/FileViewer";
 
 const TaskDetails = () => {
   const { id } = useParams();
@@ -18,6 +22,7 @@ const TaskDetails = () => {
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
     const fetchTask = async () => {
@@ -65,8 +70,42 @@ const TaskDetails = () => {
     }
   };
 
+  const handleDeleteFile = async (fileId) => {
+    if (!window.confirm("Are you sure you want to delete this attachment?"))
+      return;
+
+    try {
+      // Add debug logging
+      console.log("File path:", `http://localhost:5000/${file.path}`);
+
+      const response = await fetch(
+        `http://localhost:5000/api/tasks/${id}/attachments/${fileId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        setTask((prevTask) => ({
+          ...prevTask,
+          attachments: prevTask.attachments.filter((file) => file._id !== fileId),
+        }));
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete attachment");
+      }
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      setError(error.message);
+    }
+  };
+
   if (loading) return <div className="text-center py-8">Loading task...</div>;
-  if (error) return <div className="text-center py-8 text-red-600">{error}</div>;
+  if (error)
+    return <div className="text-center py-8 text-red-600">{error}</div>;
   if (!task) return <div className="text-center py-8">Task not found</div>;
 
   const canModify = role === "admin" || task.createdBy?._id === userId;
@@ -107,7 +146,7 @@ const TaskDetails = () => {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="p-6">
             <h1 className="text-3xl font-bold mb-4">{task.title}</h1>
-            
+
             {/* Status Badge */}
             <span
               className={`inline-block px-3 py-1 rounded-full text-sm ${
@@ -125,7 +164,7 @@ const TaskDetails = () => {
             <div className="mt-6">
               <h2 className="text-lg font-semibold mb-2">Description</h2>
               <p className="text-gray-700 whitespace-pre-line">
-                {task.description}
+                <ReactMarkdown>{task.description}</ReactMarkdown>
               </p>
             </div>
 
@@ -173,6 +212,58 @@ const TaskDetails = () => {
                 </div>
               </div>
             </div>
+
+            {/* Attachments */}
+            {task.attachments && task.attachments.length > 0 && (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold mb-2">Attachments</h2>
+                <div className="space-y-2">
+                  {task.attachments.map((file) => (
+                    <div
+                      key={file._id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded hover:bg-gray-100"
+                    >
+                      <div
+                        className="flex items-center cursor-pointer"
+                        onClick={() => setSelectedFile(file)}
+                      >
+                        <FaPaperclip className="text-gray-400 mr-2" />
+                        <span className="text-sm">{file.filename}</span>
+                      </div>
+                      <div className="flex space-x-2">
+                        <a
+                          href={`http://localhost:5000/${file.path}`}
+                          download
+                          className="text-blue-600 hover:text-blue-800"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <FaDownload />
+                        </a>
+                        {canModify && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFile(file._id);
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* File Viewer Modal */}
+            {selectedFile && (
+              <FileViewer
+                file={selectedFile}
+                onClose={() => setSelectedFile(null)}
+              />
+            )}
           </div>
         </div>
       </div>

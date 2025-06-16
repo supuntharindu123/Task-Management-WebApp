@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
+import Alert from "../common/Alert";
 import GoogleLogin from "./GoogleLogin";
 
 const LoginForm = () => {
@@ -8,11 +9,11 @@ const LoginForm = () => {
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false); // Add missing state
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const { email, password } = formData;
 
@@ -22,21 +23,33 @@ const LoginForm = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
+    setLoading(true);
+    setAlert(null);
 
     try {
+      if (!email || !password) {
+        throw new Error("Please fill in all fields");
+      }
+
       const result = await login(email, password);
 
       if (result.success) {
-        navigate("/", { replace: true });
+        setAlert({
+          type: "success",
+          message: "Login successful! Redirecting...",
+        });
+        setTimeout(() => navigate("/"), 1500);
       } else {
-        setError(result.error || "Login failed. Please try again.");
+        throw new Error(result.error || "Login failed");
       }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again later.");
+    } catch (error) {
+      setAlert({
+        type: "error",
+        message: error.message,
+      });
+      console.error("Login error:", error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -52,10 +65,12 @@ const LoginForm = () => {
         <div className="flex-grow border-t border-gray-300"></div>
       </div>
 
-      {error && (
-        <div className="mb-4 p-2 bg-red-100 text-red-700 rounded-md text-sm">
-          {error}
-        </div>
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
       )}
 
       <form onSubmit={onSubmit}>
@@ -147,9 +162,9 @@ const LoginForm = () => {
           <button
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed"
             type="submit"
-            disabled={isLoading}
+            disabled={loading}
           >
-            {isLoading ? (
+            {loading ? (
               <span className="flex items-center justify-center">
                 <svg
                   className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"

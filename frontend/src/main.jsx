@@ -14,11 +14,6 @@ const googleClientId =
   "487784687738-6thhm91fijqonhptu59rh0v1p5778jh2.apps.googleusercontent.com";
 console.log("Google Client ID:", googleClientId);
 
-if (!googleClientId) {
-  console.error("Missing Google Client ID! Check your .env file");
-  // You might want to render an error component here in production
-}
-
 root.render(
   <React.StrictMode>
     <GoogleOAuthProvider clientId={googleClientId}>

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
-import { toast } from "react-hot-toast";
-import { register } from "../../store/actions/authActions";
+import Alert from "../common/Alert";
 
 const RegisterForm = () => {
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -12,42 +12,46 @@ const RegisterForm = () => {
     confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [alert, setAlert] = useState(null);
   const navigate = useNavigate();
-  // const { register } = useAuth();
 
   const { name, email, password, confirmPassword } = formData;
 
   const onChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError(""); // Clear error when user types
+    setAlert(null); // Clear alert when user types
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    setAlert(null);
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
+      return setAlert({
+        type: "error",
+        message: "Passwords do not match",
+      });
     }
 
     setLoading(true);
-    setError("");
 
     try {
       const result = await register({ name, email, password });
 
       if (result.success) {
-        toast.success(
-          "Registration successful! Please check your email to verify your account."
-        );
-        navigate("/verify-otp");
+        setAlert({
+          type: "success",
+          message: "Registration successful! Please verify your email.",
+        });
+        setTimeout(() => navigate("/verify-otp"), 1500);
       } else {
-        setError(result.error || "Registration failed");
+        throw new Error(result.error || "Registration failed");
       }
-    } catch (err) {
-      console.error(err);
-      setError("An unexpected error occurred");
+    } catch (error) {
+      setAlert({
+        type: "error",
+        message: error.message,
+      });
     } finally {
       setLoading(false);
     }
@@ -57,10 +61,12 @@ const RegisterForm = () => {
     <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold text-center mb-6">Register</h2>
 
-      {error && (
-        <div className="mb-4 p-2 bg-red-100 text-red-700 rounded-md">
-          {error}
-        </div>
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
       )}
 
       <form onSubmit={onSubmit}>

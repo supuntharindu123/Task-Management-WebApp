@@ -31,10 +31,10 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       setAuthState({
         user: data.data.name,
-        id: data.data._id,      // Make sure ID is set
+        id: data.data._id,
         email: data.data.email,
         isactive: data.data.isactive,
-        role: data.data.role,   // Make sure role is set
+        role: data.data.role,
         token,
       });
     } catch (error) {
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
         email: data.user?.email,
         token: data.token,
       });
-      navigate("/");
+      navigate("/login");
       return { success: true };
     } catch (error) {
       console.error("OTP verification error:", error);
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }) => {
           user: data.id,
           name: data.name,
           email: email,
-          role: data.role, // Make sure role is included
+          role: data.role,
           token: data.token,
         });
         navigate("/");
@@ -155,6 +155,41 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Add register function
+  const register = async (formData) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAuthState((prev) => ({
+          ...prev,
+          email: formData.email, // Store email for OTP verification
+        }));
+        navigate("/verify-otp"); // Navigate to OTP verification page
+        return {
+          success: true,
+          message: "Verification code sent to your email",
+        };
+      } else {
+        throw new Error(data.message || "Registration failed");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      return {
+        success: false,
+        error: error.message || "Registration failed",
+      };
+    }
+  };
+
   useEffect(() => {
     loadUser();
   }, []);
@@ -163,11 +198,12 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         ...authState,
-        login, // Add login to context value
+        login,
+        register, // Add register to context
         loadUser,
         verifyOTP,
         logout,
-        googleLogin, // Add googleLogin to context
+        googleLogin,
       }}
     >
       {children}

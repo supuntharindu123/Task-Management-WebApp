@@ -2,15 +2,14 @@ import Task from "../models/Task.js";
 import User from "../models/User.js";
 import ErrorResponse from "../utils/errorResponse.js";
 import generatePDF from "../utils/generatePDF.js";
+import fs from "fs/promises";
+import path from "path";
 
 // @desc    Get all tasks
 // @route   GET /api/tasks
 // @access  Private
 export async function getTasks(req, res, next) {
   try {
-    // console.log("User requesting tasks:", req.user);
-
-    // Filtering
     let query;
     let queryStr = JSON.stringify(req.query);
     queryStr = queryStr.replace(
@@ -115,22 +114,61 @@ export async function getTask(req, res, next) {
 // @desc    Create new task
 // @route   POST /api/tasks
 // @access  Private
-export async function createTask(req, res, next) {
+export const createTask = async (req, res, next) => {
   try {
-    // console.log(req.user.id);
-    // // Add user to req.body
-    // req.body.createdBy = req.user.id;
+    // Log the incoming request
+    console.log("Request body:", req.body);
+    console.log("Files:", req.files);
 
-    const task = await Task.create(req.body);
+    // Parse the taskData from form data
+    let taskData;
+    try {
+      taskData = JSON.parse(req.body.taskData);
+    } catch (error) {
+      console.error("Error parsing taskData:", error);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid task data format",
+      });
+    }
+
+    // Add createdBy field
+    taskData.createdBy = req.user._id;
+
+    // Handle file attachments
+    if (req.files && req.files.length > 0) {
+      taskData.attachments = req.files.map((file) => ({
+        filename: file.originalname,
+        path: file.path.replace(/\\/g, "/"),
+      }));
+    }
+
+    // Create the task
+    const task = await Task.create(taskData);
+
+    // Populate references
+    await task.populate(["assignedTo", "createdBy"]);
 
     res.status(201).json({
       success: true,
       data: task,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error("Task creation error:", error);
+    // Clean up any uploaded files
+    if (req.files) {
+      req.files.forEach((file) => {
+        fs.unlink(file.path, (err) => {
+          if (err) console.error("Error deleting file:", err);
+        });
+      });
+    }
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
-}
+};
 
 // @desc    Update task
 // @route   PUT /api/tasks/:id
@@ -140,31 +178,54 @@ export async function updateTask(req, res, next) {
     let task = await Task.findById(req.params.id);
 
     if (!task) {
-      return next(
-        new ErrorResponse(`Task not found with id of ${req.params.id}`, 404)
-      );
+      return next(new ErrorResponse(`Task not found with id of ${req.params.id}`, 404));
     }
 
-    // Make sure user is task owner or admin
-    if (
-      task.assignedTo.toString() !== req.user.id &&
-      req.user.role !== "admin"
-    ) {
-      return next(
-        new ErrorResponse(`User not authorized to update this task`, 401)
-      );
+    // Parse task data from form data
+    let taskData;
+    try {
+      taskData = JSON.parse(req.body.taskData);
+    } catch (error) {
+      taskData = req.body;
     }
 
-    task = await Task.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    // Handle new file attachments
+    if (req.files && req.files.length > 0) {
+      const newAttachments = req.files.map(file => ({
+        filename: file.originalname,
+        path: file.path.replace(/\\/g, '/')
+      }));
+      
+      // Combine existing and new attachments
+      taskData.attachments = [
+        ...(task.attachments || []),
+        ...newAttachments
+      ];
+    }
+
+    // Update task
+    task = await Task.findByIdAndUpdate(
+      req.params.id,
+      taskData,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).populate(['assignedTo', 'createdBy']);
 
     res.status(200).json({
       success: true,
-      data: task,
+      data: task
     });
   } catch (err) {
+    // Clean up any uploaded files if there's an error
+    if (req.files) {
+      req.files.forEach(file => {
+        fs.unlink(file.path, err => {
+          if (err) console.error('Error deleting file:', err);
+        });
+      });
+    }
     next(err);
   }
 }
@@ -228,6 +289,39 @@ export async function generateTaskPDF(req, res, next) {
 
     pdfDoc.pipe(res);
     pdfDoc.end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Add new function to handle file deletion
+export async function deleteTaskFile(req, res, next) {
+  try {
+    const { taskId, fileId } = req.params;
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return next(
+        new ErrorResponse(`Task not found with id of ${taskId}`, 404)
+      );
+    }
+
+    const attachment = task.attachments.id(fileId);
+    if (!attachment) {
+      return next(new ErrorResponse("File not found", 404));
+    }
+
+    // Delete file from filesystem
+    await fs.unlink(attachment.path);
+
+    // Remove attachment from task
+    task.attachments.pull(fileId);
+    await task.save();
+
+    res.status(200).json({
+      success: true,
+      data: {},
+    });
   } catch (err) {
     next(err);
   }

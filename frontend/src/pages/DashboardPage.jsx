@@ -42,16 +42,15 @@ const Dashboard = () => {
     fetchTasks();
   }, [token]);
 
-  // Task filtering logic
   const pendingTasks = tasks.filter((task) => task.status === "pending");
   const inProgressTasks = tasks.filter((task) => task.status === "in-progress");
   const completedTasks = tasks.filter((task) => task.status === "completed");
   const overdueTasks = tasks.filter(
     (task) =>
-      task.status !== "completed" && isAfter(new Date(), new Date(task.deadline))
+      task.status !== "completed" &&
+      isAfter(new Date(), new Date(task.deadline))
   );
 
-  // Get tasks due today
   const today = new Date();
   const dueTodayTasks = tasks.filter(
     (task) =>
@@ -133,7 +132,6 @@ const Dashboard = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-8 rounded-lg shadow-lg mb-8">
         <div className="flex justify-between items-center">
           <div>
@@ -149,7 +147,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <StatusCard
           title="Total Tasks"
@@ -181,9 +178,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Task Lists */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Tasks Due Today & Overdue */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
@@ -217,20 +212,13 @@ const Dashboard = () => {
             />
           </div>
           <TaskList
-            tasks={
-              selectedPeriod === "today"
-                ? dueTodayTasks
-                : overdueTasks
-            }
+            tasks={selectedPeriod === "today" ? dueTodayTasks : overdueTasks}
             emptyMessage={`No ${
-              selectedPeriod === "today"
-                ? "tasks due today"
-                : "overdue tasks"
+              selectedPeriod === "today" ? "tasks due today" : "overdue tasks"
             }`}
           />
         </div>
 
-        {/* Recent Activity */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold mb-6">Recent Tasks</h2>
           <TaskList tasks={tasks.slice(0, 5)} emptyMessage="No recent tasks" />

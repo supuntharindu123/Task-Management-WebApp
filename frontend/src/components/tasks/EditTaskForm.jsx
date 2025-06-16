@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import DatePicker from "react-datepicker";
+import { FaPaperclip, FaTimes, FaTrash } from "react-icons/fa";
 import "react-datepicker/dist/react-datepicker.css";
+import Alert from '../common/Alert';
 
 const EditTaskForm = () => {
   const { id } = useParams();
@@ -19,11 +21,14 @@ const EditTaskForm = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [alert, setAlert] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [existingFiles, setExistingFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch task data
         const taskResponse = await fetch(`http://localhost:5000/api/tasks/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -33,6 +38,9 @@ const EditTaskForm = () => {
 
         if (!taskResponse.ok) throw new Error('Failed to fetch task');
         const taskData = await taskResponse.json();
+
+        // Set existing files
+        setExistingFiles(taskData.data.attachments || []);
 
         // Fetch users
         const usersResponse = await fetch('http://localhost:5000/api/users', {
@@ -61,25 +69,90 @@ const EditTaskForm = () => {
     fetchData();
   }, [id, token]);
 
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setFiles(prev => [...prev, ...selectedFiles]);
+  };
+
+  const removeNewFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteExistingFile = async (fileId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/tasks/${id}/files/${fileId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete file');
+      }
+
+      setExistingFiles(prev => prev.filter(file => file._id !== fileId));
+      setAlert({
+        type: 'success',
+        message: 'File deleted successfully'
+      });
+    } catch (error) {
+      setAlert({
+        type: 'error',
+        message: error.message
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setAlert(null);
+    setUploading(true);
+
     try {
+      const formDataToSend = new FormData();
+      
+      // Add task data
+      const taskData = {
+        ...formData,
+        deadline: formData.deadline.toISOString()
+      };
+      formDataToSend.append('taskData', JSON.stringify(taskData));
+
+      // Add new files
+      files.forEach(file => {
+        formDataToSend.append('files', file);
+      });
+
       const response = await fetch(`http://localhost:5000/api/tasks/${id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: formDataToSend
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update task');
-      }
+      const data = await response.json();
 
-      navigate('/tasks');
+      if (response.ok) {
+        setAlert({
+          type: 'success',
+          message: 'Task updated successfully'
+        });
+        setTimeout(() => navigate('/tasks'), 1500);
+      } else {
+        throw new Error(data.message || 'Failed to update task');
+      }
     } catch (error) {
-      setError(error.message);
+      setAlert({
+        type: 'error',
+        message: error.message
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -88,6 +161,13 @@ const EditTaskForm = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
       <h2 className="text-2xl font-bold mb-6">Edit Task</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -157,6 +237,78 @@ const EditTaskForm = () => {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Attachments
+          </label>
+          
+          {/* Existing Files */}
+          {existingFiles.length > 0 && (
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-gray-600 mb-2">Current Files:</h4>
+              <div className="space-y-2">
+                {existingFiles.map((file) => (
+                  <div key={file._id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <span className="text-sm truncate">{file.filename}</span>
+                    <div className="flex items-center space-x-2">
+                      <a
+                        href={`http://localhost:5000/${file.path}`}
+                        download
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <FaPaperclip />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExistingFile(file._id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Add New Files */}
+          <div className="flex items-center space-x-2">
+            <label className="cursor-pointer px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+              <FaPaperclip className="inline mr-2" />
+              Add Files
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+              />
+            </label>
+            <span className="text-sm text-gray-500">
+              Max 5 files (5MB each)
+            </span>
+          </div>
+
+          {/* New Files Preview */}
+          {files.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {files.map((file, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <span className="text-sm truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeNewFile(index)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end space-x-2">

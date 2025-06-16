@@ -18,16 +18,21 @@ export const getTasks = async (filters = {}) => {
 };
 
 // Create Task
-export const createTask = async (taskData) => {
+export const createTask = async (formData) => {
   try {
-    const response = await fetch("/api/tasks", {
+    const response = await fetch("http://localhost:5000/api/tasks", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      body: JSON.stringify(taskData),
+      body: formData, // Send FormData directly without JSON.stringify
     });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to create task");
+    }
+
     const data = await response.json();
     return { success: true, data };
   } catch (error) {
